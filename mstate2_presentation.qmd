@@ -204,6 +204,46 @@ $$
 :::
 :::
 
+## Example: first order, step by step {.smaller}
+
+```{r fo-setup}
+#| echo: false
+f3 <- function(x) sprintf("%.3f", x)
+show0 <- function(m) { out <- ifelse(m == 0, "", f3(m)); dimnames(out) <- dimnames(m); out }
+Ysp <- sum(d$Y$Y[d$Y$j == "SP"])
+fo_row <- d$N |> filter(j == "SP") |> summarise(N = sum(N), .by = "l") |>
+  mutate(Y = Ysp, P = f3(N / Ysp)) |> arrange(desc(N))
+P2 <- P1 %*% P1
+```
+
+::: {.columns}
+::: {.column width="42%"}
+**1. One row**: patients in `SP` today
+
+```{r fo-row}
+#| echo: false
+knitr::kable(fo_row, col.names = c("tomorrow", "moves N", "at risk Y", "P = N / Y"), align = "lrrr")
+```
+
+$\hat P_{j\ell} = \dfrac{\sum_s N_{j\ell}(s)}{\sum_s Y_j(s-1)}$: moves from $j$ to $\ell$ over patient-days at risk in $j$, all days pooled.
+:::
+::: {.column width="58%"}
+**2. Every row: the matrix $\hat{\mathbf P}$** (rows = today, columns = tomorrow; blank = impossible; each row sums to 1)
+
+```{r fo-matrix}
+#| echo: false
+knitr::kable(show0(P1), align = "r")
+```
+:::
+:::
+
+::: {.key}
+**3. Chapman–Kolmogorov.** In `SP` today, probability of `NIMV` in **2 days**: sum over every possible state $k$ tomorrow,
+$P^{(2)}_{\text{SP},\text{NIMV}} = \sum_k P_{\text{SP},k}\,P_{k,\text{NIMV}}$
+= `r f3(P1["SP", "SP"])` × `r f3(P1["SP", "NIMV"])` (SP → SP → NIMV) + `r f3(P1["SP", "NIMV"])` × `r f3(P1["NIMV", "NIMV"])` (SP → NIMV → NIMV)
+= **`r f3(P2["SP", "NIMV"])`**. In matrix form, $\mathbf P(2) = \mathbf P \cdot \mathbf P$ and $\mathbf P(n) = \mathbf P^{\,n}$.
+:::
+
 ## Is the present enough?
 
 ::: {.columns}
@@ -315,6 +355,55 @@ $$
 **First order is the special case** $P_{hj\ell} = P_{j\ell}$ for every $h$: pooling the second-order counts over $h$
 gives back $\hat P_{j\ell}$.
 :::
+
+## Example: second order, step by step {.smaller}
+
+```{r so-setup}
+#| echo: false
+Yns <- sum(d$Y$Y[d$Y$h == "NSP" & d$Y$j == "SP"])
+so_row <- d$N |> filter(h == "NSP", j == "SP") |> summarise(N = sum(N), .by = "l") |>
+  mutate(Y = Yns, P = f3(N / Yns)) |> arrange(desc(N))
+# Q[(a, b) -> (b, c)] = P[b, c, a]: an excerpt with three pairs today
+pairs_from <- list(c("NSP", "SP"), c("SP", "SP"), c("SP", "NIMV"))
+pairs_to   <- list(c("SP", "SP"), c("SP", "NIMV"), c("SP", "IMV"), c("NIMV", "NIMV"), c("NIMV", "IMV"), c("NIMV", "Recov"))
+Qx <- sapply(pairs_to, \(t) sapply(pairs_from, \(f) if (f[2] == t[1]) fit$P[t[1], t[2], f[1]] else 0))
+dimnames(Qx) <- list(sapply(pairs_from, \(f) sprintf("(%s, %s)", f[1], f[2])),
+                     sapply(pairs_to,   \(t) sprintf("(%s, %s)", t[1], t[2])))
+a1 <- fit$P["SP", "SP", "NSP"];   a2 <- fit$P["SP", "NIMV", "SP"]
+b1 <- fit$P["SP", "NIMV", "NSP"]; b2 <- fit$P["NIMV", "NIMV", "SP"]
+ck2 <- ckequations(fit, h = "NSP", j = "SP", l = "NIMV", nsteps = 2)[2]
+```
+
+::: {.columns}
+::: {.column width="40%"}
+**1. RPE for one history**: yesterday `NSP`, today `SP`
+
+```{r so-rpe}
+#| echo: false
+knitr::kable(so_row, col.names = c("tomorrow", "moves Ñ", "at risk Ỹ", "P̃ = Ñ / Ỹ"), align = "lrrr")
+```
+
+Same recipe as first order, but **one row per history** $(h, j)$.
+:::
+::: {.column width="60%"}
+**2. Those rows are rows of $Q$** (pair today → pair tomorrow), $Q_{(a,b)\to(b,c)} = P_{abc}$; an excerpt
+
+```{r so-q}
+#| echo: false
+knitr::kable(show0(Qx), align = "r")
+```
+
+From $(a, b)$ you can only go to pairs that start with $b$ (blank: impossible).
+:::
+:::
+
+**3. Prediction (Chapman–Kolmogorov on pairs)**: patient A (yesterday `NSP`, today `SP`), probability of `NIMV` in 2 days
+
+| Path | Day 1 | Day 2 (uses the **new** pair) | Product |
+|---|:---:|:---:|:---:|
+| SP → SP → NIMV | $\tilde P_{\text{NSP,SP,SP}}$ = `r f3(a1)` | $\tilde P_{\text{SP,SP,NIMV}}$ = `r f3(a2)` | `r f3(a1 * a2)` |
+| SP → NIMV → NIMV | $\tilde P_{\text{NSP,SP,NIMV}}$ = `r f3(b1)` | $\tilde P_{\text{SP,NIMV,NIMV}}$ = `r f3(b2)` | `r f3(b1 * b2)` |
+| **Total** | | | **`r f3(a1 * a2 + b1 * b2)`** |
 
 ## The `mstate2` package: what each function does {.smaller}
 
