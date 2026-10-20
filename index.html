@@ -1814,7 +1814,7 @@ P2boot(object, B = 200, conf.level = 0.95, seed = NULL)
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href aria-hidden="true" tabindex="-1"></a><span class="fu">system.time</span>(bt <span class="ot">&lt;-</span> <span class="fu">P2boot</span>(d, <span class="at">B =</span> <span class="dv">500</span>, <span class="at">seed =</span> <span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>#&gt;    user  system elapsed 
-#&gt;    0.22    0.00    0.22</code></pre>
+#&gt;    0.24    0.00    0.22</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href aria-hidden="true" tabindex="-1"></a>bt<span class="sc">$</span>estimate <span class="sc">|&gt;</span> <span class="fu">filter</span>(j <span class="sc">==</span> <span class="st">&quot;SP&quot;</span>) <span class="sc">|&gt;</span> <span class="fu">select</span>(h, l, p, se, se.boot)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -1957,6 +1957,96 @@ compare2(object, h, j, l, nsteps = 9, bounds = TRUE) · overlap_step(x)
 </div>
 <div class="key">
 <p>The evolution intervals assume every probability at its limit at once, so they widen quickly; the bootstrap intervals propagate the joint uncertainty and are narrower. The dashed first-order curve starts between the two histories and then rises above both: it applies the 5.2% risk of entering <code>NIMV</code> on every day in <code>SP</code>, while after the first day the real risk is 2.6%.</p>
+</div>
+</section>
+<section id="example-evolution-vs-bootstrap-intervals-step-by-step" class="slide level2 smaller">
+<h2>Example: evolution vs bootstrap intervals, step by step</h2>
+<p>Patient A (yesterday <code>NSP</code>, today <code>SP</code>): probability of <code>NIMV</code> in <strong>2 days</strong>. Estimate: 0.016 + 0.166 = <strong>0.182</strong>.</p>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><strong>Evolution intervals</strong> (<code>P2est</code>): the same calculation with <strong>every</strong> probability at its lower limit (<code>fit$P.lower</code>), then at its upper limit (<code>fit$P.upper</code>)</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top">
+<thead>
+<tr class="header">
+<th style="text-align: left;">path</th>
+<th style="text-align: center;">with lower limits</th>
+<th style="text-align: center;">with upper limits</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">SP → SP → NIMV</td>
+<td style="text-align: center;">0.569 × 0.020 = 0.011</td>
+<td style="text-align: center;">0.663 × 0.031 = 0.021</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SP → NIMV → NIMV</td>
+<td style="text-align: center;">0.184 × 0.684 = 0.126</td>
+<td style="text-align: center;">0.264 × 0.802 = 0.212</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Total</strong></td>
+<td style="text-align: center;"><strong>0.137</strong></td>
+<td style="text-align: center;"><strong>0.233</strong></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The limit tensors are not probabilities: row (<code>NSP</code>, <code>SP</code>) sums to 0.868 in <code>P.lower</code> and 1.135 in <code>P.upper</code>.</p>
+</div><div class="column" style="width:50%;">
+<p><strong>Bootstrap intervals</strong> (<code>P2boot</code>): the same calculation in <strong>each</strong> of the 500 resampled tensors, then the percentiles</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top">
+<thead>
+<tr class="header">
+<th style="text-align: left;">replicate</th>
+<th style="text-align: center;">day 1</th>
+<th style="text-align: center;">day 2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">1</td>
+<td style="text-align: center;">0.219</td>
+<td style="text-align: center;">0.176</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2</td>
+<td style="text-align: center;">0.221</td>
+<td style="text-align: center;">0.182</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">3</td>
+<td style="text-align: center;">0.207</td>
+<td style="text-align: center;">0.169</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">…</td>
+<td style="text-align: center;">…</td>
+<td style="text-align: center;">…</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">500</td>
+<td style="text-align: center;">0.205</td>
+<td style="text-align: center;">0.165</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>2.5% – 97.5%</strong></td>
+<td style="text-align: center;"><strong>0.183 – 0.261</strong></td>
+<td style="text-align: center;"><strong>0.150 – 0.213</strong></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Each replicate is a valid tensor (rows sum to 1), so errors partly cancel.</p>
+</div></div>
+<div class="key">
+<p>Day 2: evolution <strong>0.137 – 0.233</strong> vs bootstrap <strong>0.150 – 0.213</strong>. Day 5: evolution <strong>0.080 – 0.172</strong> vs bootstrap <strong>0.099 – 0.141</strong>: every step adds the extreme combination of limits, so evolution intervals widen faster.</p>
 </div>
 </section>
 <section id="summary" class="slide level2">
