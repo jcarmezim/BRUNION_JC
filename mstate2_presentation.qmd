@@ -579,25 +579,44 @@ summary(cmp_imv)
 
 ## Bootstrap intervals
 
-::: {.tiny}
-```{r compare2-boot}
-#| output-location: column
-#| fig-width: 6.2
-#| fig-height: 3.9
+```{r boot-setup}
+#| echo: false
+cmp_b <- compare2(bt, h = c("NSP", "SP"), j = "SP", l = "NIMV")
+o_ev <- overlap_step(cmp_nimv); o_bs <- overlap_step(cmp_b)
+w_ev <- ckequations(fit, "NSP", "SP", "NIMV", nsteps = 5, bounds = TRUE)[5, ]
+w_bs <- ckequations(bt,  "NSP", "SP", "NIMV", nsteps = 5, bounds = TRUE)[5, ]
+fo5  <- ckequations(T1, "SP", "SP", "NIMV", nsteps = 5)[5]
+```
+
+::: {.columns}
+::: {.column width="47%"}
+Only the input changes: `bt` (from `P2boot()`) instead of `fit`.
+
+```r
 cmp_b <- compare2(bt, h = c("NSP", "SP"),
                   j = "SP", l = "NIMV")
-summary(cmp_b)
-plot(cmp_b, dualaxis = FALSE,
-     xlab = "steps (n)", main = "SP -> NIMV")
-lines(1:9, ckequations(T1, "SP", "SP", "NIMV"),
-      lty = 2, lwd = 2)              # first order
+plot(cmp_b, dualaxis = FALSE, main = "SP -> NIMV")
 ```
+
+| `SP` → `NIMV` | Evolution (`fit`) | Bootstrap (`bt`) |
+|---|:---:|:---:|
+| Days with intervals apart | `r o_ev$separated_steps` | **`r o_bs$separated_steps`** |
+| First overlap | step `r o_ev$n` | **step `r o_bs$n`** |
+| Interval for A at step 5 | `r f3(w_ev$lower)`–`r f3(w_ev$upper)` | **`r f3(w_bs$lower)`–`r f3(w_bs$upper)`** |
+:::
+::: {.column width="53%"}
+```{r boot-plot}
+#| echo: false
+#| fig-width: 6.4
+#| fig-height: 4.1
+plot(cmp_b, dualaxis = FALSE, xlab = "steps (n)", main = "SP -> NIMV (bootstrap intervals)")
+```
+:::
 :::
 
 ::: {.key}
-The evolution intervals assume every probability at its limit at once, so they widen quickly; the bootstrap intervals
-propagate the joint uncertainty and are narrower. The dashed first-order curve starts between the two histories and
-then rises above both: it applies the 5.2% risk of entering `NIMV` on every day in `SP`, while after the first day the real risk is 2.6%.
+**Narrower**: each bootstrap replicate is a coherent set of probabilities, so the uncertainty is propagated jointly instead of
+putting every probability at its limit. The conclusion holds: the previous state matters for **about a week**.
 :::
 
 ## Example: evolution vs bootstrap intervals, step by step {.smaller}
@@ -668,11 +687,6 @@ of limits, so evolution intervals widen faster.
 | What is $P_{hj\ell}$, with its uncertainty? | `P2est()`, `P2boot()` |
 | Where will a patient be in $n$ days? | `ckequations()` |
 | Does the previous state matter, and for how long? | `compare2()`, `overlap_step()` |
-
-::: {.key}
-**In DIVINE**: patients in `SP` today who were in `NSP` yesterday need ventilation far more often than those already
-in `SP`; the difference lasts about a week; and a first-order model averages over histories that behave very differently.
-:::
 
 ## References
 
